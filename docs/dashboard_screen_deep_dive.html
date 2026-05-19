@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Screen Deep Dive</title>
+  <style>
+    :root {
+      --bg: #0a0d18;
+      --panel: #13182a;
+      --panel-2: #1b2340;
+      --text: #f4f7ff;
+      --muted: #aab2d5;
+      --cyan: #14f1ff;
+      --magenta: #ff2bd6;
+      --amber: #ffc857;
+      --border: rgba(255,255,255,0.12);
+      --code: #0f1322;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, #080a12 0%, #0d1020 100%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .hero,
+    .card {
+      background: linear-gradient(180deg, rgba(19, 24, 42, 0.98), rgba(27, 35, 64, 0.98));
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero {
+      padding: 34px;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 40px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(20, 241, 255, 0.08);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc,
+    .section {
+      padding: 24px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+    }
+
+    .toc h2,
+    .section h2 {
+      margin: 0 0 16px;
+      font-size: 22px;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .toc li {
+      margin: 8px 0;
+      color: var(--muted);
+    }
+
+    .toc a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    h3 {
+      margin: 20px 0 8px;
+      color: var(--cyan);
+      font-size: 18px;
+    }
+
+    h4 {
+      margin: 16px 0 8px;
+      color: var(--amber);
+      font-size: 15px;
+    }
+
+    pre {
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      white-space: pre-wrap;
+      color: #eaf0ff;
+      margin: 12px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--amber);
+    }
+
+    .path {
+      color: #7ef0b8;
+      font-weight: 700;
+    }
+
+    .teacher,
+    .student,
+    .note {
+      border-left: 4px solid var(--cyan);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      background: rgba(20, 241, 255, 0.05);
+    }
+
+    .teacher {
+      border-left-color: var(--magenta);
+      background: rgba(255, 43, 214, 0.06);
+    }
+
+    .student {
+      border-left-color: var(--amber);
+      background: rgba(255, 200, 87, 0.06);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      padding: 16px;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="pill-row">
+        <span class="pill">Deep Dive</span>
+        <span class="pill">Dashboard Screen</span>
+        <span class="pill">Teacher + Student</span>
+      </div>
+      <h1>dashboard_screen.dart Explained</h1>
+      <p>
+        This guide goes much deeper into one file: <span class="path">lib/screen/dashboard_screen.dart</span>.
+        The goal is to explain not just what the code does, but why it is structured this way, how the pieces
+        cooperate, and how you should think when reading or extending it.
+      </p>
+    </section>
+
+    <div class="layout">
+      <aside class="card toc">
+        <h2>Deep-Dive Map</h2>
+        <ol>
+          <li><a href="#role">Role of the File</a></li>
+          <li><a href="#imports">Imports and Dependencies</a></li>
+          <li><a href="#stateful">Why It Is Stateful</a></li>
+          <li><a href="#state">Local State Variables</a></li>
+          <li><a href="#lifecycle">Lifecycle Methods</a></li>
+          <li><a href="#actions">Action Methods</a></li>
+          <li><a href="#build">The build Method</a></li>
+          <li><a href="#hero">Top Hero Card</a></li>
+          <li><a href="#cashflow">Cash Flow and Recent Panel</a></li>
+          <li><a href="#charts">Chart Data Logic</a></li>
+          <li><a href="#helpers">Private Helper Widgets</a></li>
+          <li><a href="#nav">Navigation Structure</a></li>
+          <li><a href="#data">How Data Moves Through This Screen</a></li>
+          <li><a href="#read">How to Read This File Efficiently</a></li>
+        </ol>
+      </aside>
+
+      <main class="content">
+        <section class="card section" id="role">
+          <h2>1. Role of the File</h2>
+          <p>
+            This file is the home screen of the app. But it is more than that.
+            It also acts as:
+          </p>
+          <ul>
+            <li>the main overview dashboard</li>
+            <li>the place where the active account focus is changed</li>
+            <li>the page that summarizes balance, income, expenses, categories, and activity</li>
+            <li>a navigation hub to transactions, accounts, statistics, and rates</li>
+          </ul>
+
+          <div class="teacher">
+            <strong>Teacher idea:</strong> When one file becomes the “home base” of an app, it naturally grows larger.
+            That is why this file contains both screen logic and many private helper widgets.
+          </div>
+        </section>
+
+        <section class="card section" id="imports">
+          <h2>2. Imports and Dependencies</h2>
+          <p>
+            At the top of the file, the imports tell us what the dashboard depends on.
+          </p>
+
+          <pre>import 'dart:math' as math;
+
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';</pre>
+
+          <h3>What These Mean</h3>
+          <ul>
+            <li><code>dart:math</code>: used for chart axis interval calculations</li>
+            <li><code>fl_chart</code>: used for line charts and pie charts</li>
+            <li><code>material.dart</code>: all standard Flutter UI widgets</li>
+            <li><code>intl</code>: formatting dates like month labels and chart labels</li>
+            <li><code>uuid</code>: creating unique ids for new accounts</li>
+          </ul>
+
+          <p>
+            Then the file imports the app’s own layers:
+          </p>
+          <ul>
+            <li>models: account and transaction data</li>
+            <li>service: finance business logic</li>
+            <li>other screens: accounts, transactions, stats, rates</li>
+          </ul>
+
+          <div class="student">
+            <strong>Student takeaway:</strong> Before reading the body of a Flutter file, always read the imports.
+            They tell you whether the file is mostly UI, networking, storage, charts, forms, or navigation.
+          </div>
+        </section>
+
+        <section class="card section" id="stateful">
+          <h2>3. Why It Is Stateful</h2>
+          <p>
+            The dashboard is a <code>StatefulWidget</code> because its visual output changes based on:
+          </p>
+          <ul>
+            <li>which panel is active</li>
+            <li>which account is selected</li>
+            <li>whether preview data was just added or removed</li>
+            <li>whether the user returned from another screen with changed data</li>
+          </ul>
+
+          <pre>class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State&lt;DashboardScreen&gt; createState() =&gt; _DashboardScreenState();
+}</pre>
+
+          <p>
+            The public widget class is small. The real logic lives in <code>_DashboardScreenState</code>.
+          </p>
+        </section>
+
+        <section class="card section" id="state">
+          <h2>4. Local State Variables</h2>
+
+          <pre>bool _showCashFlowPanel = true;
+final nameController = TextEditingController();
+final balanceController = TextEditingController();</pre>
+
+          <h3>4.1 _showCashFlowPanel</h3>
+          <p>
+            This boolean controls whether the main combined card shows:
+          </p>
+          <ul>
+            <li>cash flow</li>
+            <li>or recent transactions</li>
+          </ul>
+
+          <h3>4.2 Text Controllers</h3>
+          <p>
+            These are used by account dialogs when creating or editing accounts.
+            They are kept in the dashboard because the dashboard can directly open those dialogs.
+          </p>
+
+          <div class="teacher">
+            <strong>Teacher note:</strong> Controllers are resources. That is why the file also has a <code>dispose()</code> method.
+          </div>
+        </section>
+
+        <section class="card section" id="lifecycle">
+          <h2>5. Lifecycle Methods</h2>
+
+          <h3>5.1 initState()</h3>
+          <pre>@override
+void initState() {
+  super.initState();
+  _seedPreviewData();
+}</pre>
+
+          <p>
+            The moment the dashboard is created, it tries to seed preview data.
+            This is a very product-oriented choice: a finance dashboard looks much better when it has realistic content.
+          </p>
+
+          <h3>5.2 dispose()</h3>
+          <pre>@override
+void dispose() {
+  nameController.dispose();
+  balanceController.dispose();
+  super.dispose();
+}</pre>
+
+          <p>
+            This prevents memory leaks by properly cleaning up text controllers when the widget is removed.
+          </p>
+        </section>
+
+        <section class="card section" id="actions">
+          <h2>6. Action Methods</h2>
+          <p>
+            One way to understand this file is to divide its methods into “user actions.”
+          </p>
+
+          <h3>6.1 Data Preparation Action</h3>
+          <h4><code>_seedPreviewData()</code></h4>
+          <p>
+            Asks <code>FinanceService</code> to create sample accounts and transactions if needed.
+          </p>
+
+          <h3>6.2 Selection Action</h3>
+          <h4><code>setOverviewAccount(String? accountId)</code></h4>
+          <p>
+            Saves the selected account in persistent settings, then refreshes the UI.
+          </p>
+
+          <h3>6.3 Navigation Action</h3>
+          <h4><code>openScreen(Widget screen)</code></h4>
+          <p>
+            Navigates to another screen and refreshes the dashboard after returning.
+          </p>
+
+          <pre>await Navigator.push(...);
+if (mounted) {
+  setState(() {});
+}</pre>
+
+          <p>
+            This is important. The dashboard assumes another screen may have changed data.
+          </p>
+
+          <h3>6.4 Preview Management Actions</h3>
+          <ul>
+            <li><code>addPreviewData()</code></li>
+            <li><code>clearPreviewData()</code></li>
+          </ul>
+
+          <p>
+            These are convenience methods for demo/testing mode.
+          </p>
+
+          <h3>6.5 Account Dialog Actions</h3>
+          <ul>
+            <li><code>addAccountDialog()</code></li>
+            <li><code>editAccountDialog(...)</code></li>
+            <li><code>deleteAccount(...)</code></li>
+          </ul>
+
+          <p>
+            These methods keep account CRUD available directly from the dashboard flow.
+          </p>
+
+          <h3>6.6 Quick Add Action</h3>
+          <h4><code>showQuickActions()</code></h4>
+          <p>
+            Opens a bottom sheet with shortcuts for:
+          </p>
+          <ul>
+            <li>new income</li>
+            <li>new expense</li>
+            <li>new account</li>
+          </ul>
+
+          <div class="student">
+            <strong>Student takeaway:</strong> These methods are not random utility functions.
+            They are the user interaction vocabulary of the dashboard.
+          </div>
+        </section>
+
+        <section class="card section" id="build">
+          <h2>7. The build Method</h2>
+          <p>
+            The <code>build()</code> method is where the dashboard transforms raw service data into UI-ready variables.
+          </p>
+
+          <h3>7.1 What It Reads First</h3>
+          <ul>
+            <li>accounts list</li>
+            <li>selected account</li>
+            <li>selected account id</li>
+            <li>income</li>
+            <li>expenses</li>
+            <li>recent transactions</li>
+            <li>expense transactions</li>
+            <li>expense breakdown</li>
+            <li>account chart data</li>
+          </ul>
+
+          <p>
+            This is a classic dashboard pattern:
+          </p>
+          <pre>read domain data
+  ↓
+derive display data
+  ↓
+build UI sections from that display data</pre>
+
+          <h3>7.2 Why This Matters</h3>
+          <p>
+            The screen is not just “drawing widgets.” It is also functioning like a presentation adapter between
+            service data and visual components.
+          </p>
+        </section>
+
+        <section class="card section" id="hero">
+          <h2>8. Top Hero Card</h2>
+          <p>
+            The first large card is the visual identity of the dashboard. It has three jobs:
+          </p>
+          <ul>
+            <li>show the current month context</li>
+            <li>show the main balance</li>
+            <li>let the user choose which account is currently being viewed</li>
+          </ul>
+
+          <h3>8.1 Why This Card Is Important</h3>
+          <p>
+            In finance apps, the hero card answers the biggest question:
+            <em>“What is my money situation right now?”</em>
+          </p>
+
+          <h3>8.2 Internal Structure</h3>
+          <pre>Hero Card
+  Top row
+    month label
+    mode badge (all accounts or focused)
+  Balance label
+  Balance amount
+  Divider glow line
+  "Viewing" area
+  account selector dropdown</pre>
+
+          <h3>8.3 The Account Selector</h3>
+          <p>
+            The selector is important architecturally because it changes the meaning of the entire screen.
+          </p>
+          <ul>
+            <li>If no account is selected: the dashboard shows all-account summaries.</li>
+            <li>If an account is selected: the dashboard becomes a focused account dashboard.</li>
+          </ul>
+
+          <div class="teacher">
+            <strong>Teacher note:</strong> This is an example of “global page context.” One selector changes the behavior
+            of multiple sections below it.
+          </div>
+        </section>
+
+        <section class="card section" id="cashflow">
+          <h2>9. Cash Flow and Recent Panel</h2>
+          <p>
+            One of the more thoughtful UI decisions in this file is that two related sections share one container:
+          </p>
+          <ul>
+            <li>cash flow</li>
+            <li>recent transactions</li>
+          </ul>
+
+          <p>
+            Instead of stacking too many cards, the dashboard uses a switch-like control to show one panel at a time.
+          </p>
+
+          <h3>9.1 Why This Is Good UI</h3>
+          <ul>
+            <li>less vertical clutter</li>
+            <li>clearer hierarchy</li>
+            <li>same screen, multiple information modes</li>
+          </ul>
+
+          <h3>9.2 Why This Is Good Code</h3>
+          <p>
+            The boolean <code>_showCashFlowPanel</code> is a very cheap state variable with a large UI effect.
+            That is a sign of efficient state design.
+          </p>
+        </section>
+
+        <section class="card section" id="charts">
+          <h2>10. Chart Data Logic</h2>
+          <p>
+            The file contains several helper methods that are easy to miss but very important.
+          </p>
+
+          <h3>10.1 Balance History Builder</h3>
+          <p>
+            The account activity line chart is not taken directly from stored chart points. The dashboard builds it
+            from transactions plus account balance.
+          </p>
+
+          <pre>current balance
+  ↓
+walk backwards to estimate opening balance
+  ↓
+walk forward through transactions
+  ↓
+build chart points over time</pre>
+
+          <p>
+            This is a very useful finance pattern because accounts store the current balance, but charts need historical steps.
+          </p>
+
+          <h3>10.2 Axis Label Helpers</h3>
+          <ul>
+            <li><code>_labelForAccountXAxis(...)</code></li>
+            <li><code>_minAccountChartValue(...)</code></li>
+            <li><code>_maxAccountChartValue(...)</code></li>
+            <li><code>_accountChartInterval(...)</code></li>
+            <li><code>_compactChartCurrency(...)</code></li>
+          </ul>
+
+          <p>
+            These helpers exist because charts become ugly fast if you do not control labels carefully.
+          </p>
+
+          <div class="student">
+            <strong>Student takeaway:</strong> Real chart code is often 30% drawing and 70% formatting.
+          </div>
+        </section>
+
+        <section class="card section" id="helpers">
+          <h2>11. Private Helper Widgets</h2>
+          <p>
+            After the main state class, the file defines many private widget classes like:
+          </p>
+          <ul>
+            <li><code>_CashFlowCard</code></li>
+            <li><code>_FlowMetricTile</code></li>
+            <li><code>_RecentTransactionTile</code></li>
+            <li><code>_CategoryLegendTile</code></li>
+            <li><code>_BottomNavItem</code></li>
+            <li><code>_QuickActionTile</code></li>
+          </ul>
+
+          <h3>Why Keep Them Here?</h3>
+          <p>
+            They are private because they only make sense in the dashboard context.
+            This avoids polluting the rest of the codebase with tiny one-screen widgets.
+          </p>
+
+          <h3>Why Not Keep Everything Inline?</h3>
+          <p>
+            Because that would make <code>build()</code> unreadable. The helper widgets create mental chunks.
+          </p>
+
+          <pre>Large screen file
+  ↓
+Extract repeated UI into private widgets
+  ↓
+Keep those widgets local to the file</pre>
+        </section>
+
+        <section class="card section" id="nav">
+          <h2>12. Navigation Structure</h2>
+          <p>
+            The dashboard is also the app’s navigation shell.
+          </p>
+
+          <h3>Bottom Navigation Items</h3>
+          <ul>
+            <li>Home</li>
+            <li>Transactions</li>
+            <li>Accounts</li>
+            <li>Stats</li>
+            <li>Rates</li>
+          </ul>
+
+          <h3>Center Quick Add Button</h3>
+          <p>
+            The floating center <code>+</code> is not just decoration. It is an action hub for creating new data quickly.
+          </p>
+
+          <div class="teacher">
+            <strong>Teacher note:</strong> Notice the separation:
+            bottom items are for moving around the app, while the center button is for creating new records.
+          </div>
+        </section>
+
+        <section class="card section" id="data">
+          <h2>13. How Data Moves Through This Screen</h2>
+
+          <h3>13.1 Example: User Changes the Selected Account</h3>
+          <pre>User picks account from dropdown
+  ↓
+setOverviewAccount(accountId)
+  ↓
+FinanceService.setSelectedAccountId(accountId)
+  ↓
+selected account is saved in settings box
+  ↓
+setState()
+  ↓
+build() runs again
+  ↓
+all summary values now use the selected account</pre>
+
+          <h3>13.2 Example: User Adds New Expense</h3>
+          <pre>User taps + button
+  ↓
+bottom sheet opens
+  ↓
+user chooses Expense
+  ↓
+TransactionFormScreen opens
+  ↓
+FinanceService.addTransaction(...)
+  ↓
+Navigator returns to dashboard
+  ↓
+dashboard refreshes using updated service data</pre>
+
+          <h3>13.3 Example: Preview Data Is Cleared</h3>
+          <pre>User chooses clear preview data
+  ↓
+confirmation dialog
+  ↓
+FinanceService.clearPreviewData()
+  ↓
+demo transactions deleted
+demo accounts deleted
+preview setting removed
+  ↓
+dashboard shows a cleaner real-data state</pre>
+        </section>
+
+        <section class="card section" id="read">
+          <h2>14. How to Read This File Efficiently</h2>
+          <p>
+            If you try to read <code>dashboard_screen.dart</code> from top to bottom as one giant story,
+            it may feel overwhelming. Use this reading order instead:
+          </p>
+
+          <ol>
+            <li>Read the imports.</li>
+            <li>Read the state variables.</li>
+            <li>Read the action methods like <code>openScreen()</code>, <code>setOverviewAccount()</code>, and dialogs.</li>
+            <li>Read the top of <code>build()</code> where all summary variables are computed.</li>
+            <li>Read the large visible sections in order:
+              hero card → panel card → chart/insight card → bottom nav.
+            </li>
+            <li>Only after that, read the private helper widgets at the bottom.</li>
+          </ol>
+
+          <div class="student">
+            <strong>Final student strategy:</strong> When a file is big, do not ask “How do I understand all of it at once?”
+            Ask “What is the responsibility of each section?” Once each section is clear, the whole file becomes clear.
+          </div>
+
+          <div class="teacher">
+            <strong>Final teacher conclusion:</strong> This dashboard is a good study example because it combines
+            Flutter widget composition, local state, service-driven data, chart formatting, navigation, dialogs,
+            and product-oriented UI thinking in one place.
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
